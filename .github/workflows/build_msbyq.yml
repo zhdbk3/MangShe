@@ -1,0 +1,59 @@
+name: 打包 MangShe 编译器 (msbyq)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ms_version:
+        description: 'MangShe 版本'
+        required: true
+      py_version:
+        description: 'Python 版本'
+        required: true
+        default: '3.11'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: 签出存储库
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ github.event.inputs.py_version }} # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified
+          cache: 'pip'
+          cache-dependency-path: |
+            **/requirements*.txt
+
+      - name: 安装依赖项
+        run: |
+          pip install -r requirements.txt
+
+      - name: 构建可执行文件
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: MangShe/msbyq.py
+          standalone: true
+          output-file: msbyq
+          product-name: MangShe 编译器
+          file-version: ${{ github.event.inputs.ms_version }}
+          product-version: ${{ github.event.inputs.ms_version }}
+          file-description: MangShe 编译器
+          copyright: "Copyright MC着火的冰块. All rights reserved."
+          no-deployment-flag: self-execution
+          include-data-dir: MangShe/mappings=mappings
+
+      - name: 上传工件
+        uses: actions/upload-artifact@v4
+        with:
+          name: MangShe-v${{ github.event.inputs.ms_version }}+py${{ github.event.inputs.py_version }}_${{ runner.os }}
+          path: |
+            build/msbyq.dist/*
